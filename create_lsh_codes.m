@@ -1,6 +1,11 @@
 % dataset_name should be one of: sift_1M / sift_1B / gist_1M / gist_80M.
 % You should download the datasets separately.
-dataset_name = 'sift_1B';
+if (~exist('dataset_name', 'var'))
+  dataset_name = 'gist_80M';
+  fprintf('*** Using default dataset: %s\n', dataset_name);
+else
+  fprintf('*** Using specified dataset: %s\n', dataset_name);
+end
 
 % nb controls the lenght of the binary codes generated.
 % nb can be set from outside.
@@ -9,8 +14,8 @@ if (~exist('nb', 'var'))
 end
 
 % Where the corresponding datasets are stored:
-TINY_HOME = 'data/tiny'; 		% the root of 80 million tiny images dataset
-INRIA_HOME = 'data/inria';		% the root of INIRA BIGANN datasets
+TINY_HOME = 'data/tiny';      % the root of 80 million tiny images dataset
+INRIA_HOME = 'data/inria';    % the root of INIRA BIGANN datasets
 
 % Where the output matrix of binary codes should be stored:
 outputdir = 'codes/lsh';
@@ -26,6 +31,7 @@ if (~exist(CACHE_DIR, 'file'))
 end
 
 addpath matlab;
+%%%%%%%%%%addpath data/inria/matlab
 if (strcmp(dataset_name, 'sift_1B') || strcmp(dataset_name, 'sift_1M') || strcmp(dataset_name, 'gist_1M'))
   addpath([INRIA_HOME, '/matlab']);
 else
@@ -54,6 +60,7 @@ elseif strcmp(dataset_name, 'gist_80M')
   N = 79*10^6;
 end
 
+% compute `learn_mean` (and `perm` for gist_80M)
 if ~exist([CACHE_DIR, '/', dataset_name, '_mean.mat'], 'file')
   fprintf('Computing the data mean for the %s dataset... \n', dataset_name);
   if strcmp(dataset_name, 'sift_1M')
@@ -77,7 +84,10 @@ if ~exist([CACHE_DIR, '/', dataset_name, '_mean.mat'], 'file')
     learn_mean = mean(trdata, 2);
     save([CACHE_DIR, '/gist_1M_mean'], 'learn_mean');
   elseif strcmp(dataset_name, 'gist_80M')
-    trdata = read_tiny_gist_binary(1:10^7);
+    fprintf('Load 80M train...');
+    Ntraining = 10^7;
+    trdata = read_tiny_gist_binary(1:Ntraining);
+    fprintf('%d loaded!\n', Ntraining);
     learn_mean = mean(trdata, 2);
     clear trdata;
     save([CACHE_DIR, '/gist_80M_mean'], 'learn_mean');
@@ -95,8 +105,8 @@ else
 end
 
 nd = size(learn_mean, 1);
-W = [randn(nb, nd) zeros(nb, 1)];	% Random projection-based hashing (LSH) preserves angles.
-					% One can load W from outside too
+W = [randn(nb, nd) zeros(nb, 1)]; % Random projection-based hashing (LSH) preserves angles.
+                                  % One can load W from outside too
 nbuffer = 10^6;
 B = zeros(ceil(nb/8), N, 'uint8');
 
@@ -130,8 +140,8 @@ elseif strcmp(dataset_name, 'sift_1B')
   query = b2fvecs_read([datahome, '/ANN_SIFT1B/bigann_query.bvecs']);
 elseif strcmp(dataset_name, 'gist_1M')
   query = fvecs_read([datahome, '/ANN_GIST1M/gist/gist_query.fvecs']);
-  elseif strcmp(dataset_name, 'gist_80M')
-    query = read_tiny_gist_binary( perm([(79302017-10000+1):79302017]) );
+elseif strcmp(dataset_name, 'gist_80M')
+  query = read_tiny_gist_binary( perm([(79302017-10000+1):79302017]) );
 end
 if (isempty(query))
   Q = [];
